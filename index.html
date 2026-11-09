@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bag of Cows: Binary Practice</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-badge">BoC</div>
+        <div>
+          <p class="eyebrow">Inspired by the original Bag of Cows</p>
+          <h1>Binary practice for UK Computer Science</h1>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="panel intro-panel">
+        <p>
+          A successor to the original binary question generator used for classroom revision,
+          giving students practice with binary, denary and hexadecimal conversions and working
+          through common GCSE and A-Level tasks.
+        </p>
+        <div class="feature-list">
+          <span>Binary to denary</span>
+          <span>Denary to binary</span>
+          <span>Hex conversions</span>
+          <span>Two's complement</span>
+          <span>Floating point</span>
+          <span>Teacher answers</span>
+        </div>
+      </section>
+
+      <section class="panel controls-panel">
+        <label>
+          Tier
+          <select id="tierSelect"></select>
+        </label>
+
+        <label>
+          Questions
+          <input id="questionCount" type="number" min="1" max="30" value="10" />
+        </label>
+
+        <div class="button-row">
+          <button id="generateQuestions" type="button">Generate set</button>
+          <button id="checkAnswers" type="button" class="secondary">Check answers</button>
+        </div>
+
+        <label class="toggle-row">
+          <input type="checkbox" id="toggleAnswers" />
+          <span>Show answers</span>
+        </label>
+
+        <label>
+          Set code
+          <input id="seedCode" type="text" readonly value="" />
+        </label>
+      </section>
+
+      <section class="panel question-panel">
+        <div id="scorePanel" class="score hidden">Score: 0 / 0</div>
+        <div id="questionList" class="question-list"></div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
