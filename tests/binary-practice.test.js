@@ -384,3 +384,29 @@ test('evaluateAnswer accepts equivalent responses for hexadecimal and binary', (
   assert.equal(evaluateAnswer({ type: 'floating-point-decode', answer: 26 }, '1A'), false);
   assert.equal(evaluateAnswer(q, '25'), false);
 });
+
+test('numeric marking rejects near misses while accepting equivalent decimal formatting', () => {
+  const fractionQuestion = { type: 'binary-fraction-to-denary', answer: 0.625 };
+  assert.equal(evaluateAnswer(fractionQuestion, '0.6250'), true);
+  assert.equal(evaluateAnswer(fractionQuestion, '0.6250000001'), false);
+
+  const floatingPointQuestion = { type: 'floating-point-decode', answer: -0.75 };
+  assert.equal(evaluateAnswer(floatingPointQuestion, '-0.750'), true);
+  assert.equal(evaluateAnswer(floatingPointQuestion, '-0.7500000001'), false);
+});
+
+test('floating-point encoding normalises exact positive and negative boundaries', () => {
+  const boundaryCases = [
+    [0.5, '01000000', '0000'],
+    [1, '01000000', '0001'],
+    [-0.5, '10000000', '1111'],
+    [-1, '10000000', '0000'],
+  ];
+
+  for (const [value, mantissa, exponent] of boundaryCases) {
+    const encoded = encodeFloatingPoint(value);
+    assert.deepEqual(encoded, { mantissa, exponent });
+    assert.equal(isNormalisedMantissa(encoded.mantissa), true);
+    assert.equal(decodeFloatingPoint(encoded.mantissa, encoded.exponent).value, value);
+  }
+});

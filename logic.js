@@ -320,7 +320,7 @@ export function evaluateAnswer(question, userAnswer) {
 
   if (typeof expected === 'number') {
     const parsed = parseAnswerValue(raw, 10);
-    if (parsed !== null && Math.abs(parsed - expected) < 1e-9) return true;
+    if (parsed !== null && parsed === expected) return true;
     if (question.type !== 'hex-to-denary') return false;
     const hexParsed = parseAnswerValue(raw, 16);
     return hexParsed !== null && hexParsed === expected;
