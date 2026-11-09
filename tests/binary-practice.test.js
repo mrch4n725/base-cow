@@ -55,6 +55,8 @@ test('binary fraction conversion is exact for positive and negative values', () 
   assert.equal(denaryToBinaryFraction(-2.375, 3), '-10.011');
   assert.throws(() => denaryToBinaryFraction(0.1, 4), /not exactly representable/);
   assert.throws(() => binaryFractionToDenary('0.12'), /Invalid binary fraction/);
+  assert.throws(() => binaryFractionToDenary(`0.${'1'.repeat(9)}`), /at most 8/);
+  assert.throws(() => denaryToBinaryFraction(0.5, 9), /Invalid binary fraction/);
 });
 
 test('floating-point conversion uses a normalized signed mantissa and signed exponent', () => {
@@ -201,7 +203,7 @@ test('supporting questions and generated floating-point conversions are mathemat
     'floating-point-encode',
     'floating-point-decode',
     'floating-point-normalise',
-    'floating-point-exponent',
+    'floating-point-exponent-decode',
   ]) {
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const question = generateQuestion('GCSE Higher', type);
@@ -230,11 +232,9 @@ test('supporting questions and generated floating-point conversions are mathemat
         assert.equal(isNormalisedMantissa(mantissa), true);
       }
 
-      if (type === 'floating-point-exponent') {
-        assert.equal(
-          question.answer,
-          question.prompt.includes('increases') ? 'doubles' : 'halves',
-        );
+      if (type === 'floating-point-exponent-decode') {
+        const [, exponent] = question.prompt.match(/exponent ([01]{4})/);
+        assert.equal(twoComplement(toDenary(exponent), 4), question.answer);
       }
 
       if (type === 'denary-to-binary-fraction') {
@@ -260,6 +260,34 @@ test('answer marking reports concise correctness and the right answer', () => {
   });
 });
 
+test('answer checking respects binary, hexadecimal, numeric and floating-point fields', () => {
+  assert.equal(evaluateAnswer({ type: 'denary-to-hex', answer: '1A' }, '0x1a'), true);
+  assert.equal(evaluateAnswer({ type: 'denary-to-hex', answer: '1A' }, '0b1a'), false);
+  assert.equal(evaluateAnswer({ type: 'denary-to-hex', answer: 'A' }, '000a'), true);
+  assert.equal(evaluateAnswer({ type: 'hex-to-binary', answer: '00011010' }, '0b0001 1010'), true);
+  assert.equal(evaluateAnswer({ type: 'hex-to-binary', answer: '00011010' }, '11010'), true);
+  assert.equal(evaluateAnswer({ type: 'denary-to-binary', answer: '1010' }, '00001010'), true);
+  assert.equal(evaluateAnswer({ type: 'binary-to-hex', answer: '1A' }, '1a'), true);
+  assert.equal(evaluateAnswer({ type: 'binary-to-hex', answer: '1A' }, '0b1A'), false);
+  assert.equal(evaluateAnswer({ type: 'binary-fraction-to-denary', answer: 0.625 }, '0.6250'), true);
+  assert.equal(
+    evaluateAnswer({ type: 'floating-point-encode', answer: '01010000 0000' }, '010100000000'),
+    true,
+  );
+  assert.equal(
+    evaluateAnswer({ type: 'floating-point-encode', answer: '01010000 0000' }, '01010000, 0000'),
+    true,
+  );
+  assert.equal(
+    evaluateAnswer({ type: 'floating-point-encode', answer: '01010000 0000' }, '01010000 0001'),
+    false,
+  );
+  assert.equal(
+    evaluateAnswer({ type: 'floating-point-encode', answer: '01010000 0000' }, '01010000'),
+    false,
+  );
+});
+
 test('A-level practice sets start with fractional and floating-point questions', () => {
   for (const tier of ['A-Level AS', 'A-Level A2']) {
     const questions = generateQuestionSet(tier, 10);
@@ -269,7 +297,7 @@ test('A-level practice sets start with fractional and floating-point questions',
         'floating-point-encode',
         'floating-point-decode',
         'floating-point-normalise',
-        'floating-point-exponent',
+        'floating-point-exponent-decode',
         'binary-fraction-to-denary',
         'denary-to-binary-fraction',
       ],
@@ -287,6 +315,38 @@ test('every configured tier topic generates a gradable question', () => {
       assert.equal(evaluateAnswer(question, question.answer), true, `${tierName}: ${type}`);
     });
   });
+});
+
+test('generated question answers are objective and use manageable values', () => {
+  const tiers = Object.keys(tierCatalog);
+  for (const tier of tiers) {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const questions = generateQuestionSet(tier, 30);
+      for (const question of questions) {
+        assert.ok(typeof question.answer === 'number' || typeof question.answer === 'string');
+        if (typeof question.answer === 'string') {
+          const isHexAnswer = ['binary-to-hex', 'denary-to-hex'].includes(question.type);
+          const answerPattern = isHexAnswer
+            ? /^[0-9A-F]+$/i
+            : /^(?:[01]+(?:\.[01]+)?|[01]+\s+[01]+)$/;
+          assert.match(question.answer, answerPattern, `${tier} ${question.type} has a non-objective answer`);
+        }
+        assert.equal(evaluateAnswer(question, question.answer), true, `${tier} ${question.type}`);
+        if (typeof question.answer === 'number') {
+          const rounded = Math.round(question.answer * 10000) / 10000;
+          assert.ok(Math.abs(question.answer - rounded) < 1e-9, `${tier} ${question.type} is awkward to calculate`);
+        }
+        if (question.type === 'binary-fraction-to-denary') {
+          assert.ok(question.prompt.match(/0\.([01]+)₂/)[1].length <= 8);
+        }
+        if (question.type === 'denary-to-binary-fraction') {
+          const [, value] = question.prompt.match(/Convert ([\d.]+)/);
+          assert.ok(Math.abs(binaryFractionToDenary(question.answer) - Number(value)) < 1e-9);
+          assert.ok(question.answer.match(/\.([01]+)$/)[1].length <= 8);
+        }
+      }
+    }
+  }
 });
 
 test('conversion prompts use values no larger than one byte', () => {
