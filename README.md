@@ -1,22 +1,21 @@
-# Bag of Cows number-representation practice
+# Base Cow
 
-A lightweight revision site for UK Computer Science students, inspired by the original Bag of Cows binary question generator. Practice is weighted toward two's-complement representation and signed arithmetic, with shorter, curriculum-sized base-conversion questions.
+A lightweight, single-page revision tool inspired by the original Bag of Cows question generator. Questions stay together on the page; students enter answers, check the set, and refresh it when ready.
 
 ## Features
 
-- Tiered question generation for KS3, GCSE Foundation, GCSE Higher, AS and A2
-- Two's-complement encoding and decoding, plus signed addition and subtraction
-- Conversions in both directions between binary, denary and hexadecimal
-- Byte-sized unsigned binary addition, subtraction and logical shifts
-- Bit-capacity, binary-fraction and floating-point questions
-- Teacher answer reveal toggle and scoring
-- Question-set codes for reference
+- Tiered questions for KS3, GCSE Foundation, GCSE Higher, AS and A2
+- Binary, denary and hexadecimal conversions, arithmetic, shifts, and two's-complement
+- Binary fraction conversion in both directions
+- A-level floating-point encoding, decoding and normalization using an 8-bit signed mantissa and 4-bit two's-complement exponent
+- Immediate right-answer feedback and a score when checking a set
+- A small, topic-organized Resources section with links to established educational sites and official specifications
 
-Ordinary base-conversion questions use values up to one byte (0–255), avoiding long, oversized binary strings. GCSE Higher and above give priority to two's-complement questions; all six base-conversion directions remain available.
+Floating-point questions use the value `signed mantissa / 2^7 × 2^signed exponent`. Normalized mantissas have different first and second bits. Conversion questions use exactly representable values, avoiding unexplained rounding.
 
 ## Curriculum reference
 
-The [AQA AS Computer Science 7516 specification](https://www.aqa.org.uk/subjects/computer-science/as-level/computer-science-7516/specification/subject-content/fundamentals-of-data-representation) is the primary curriculum reference for base conversion, two's-complement signed conversion/subtraction, bit ranges and binary fractions. The [AQA GCSE Computer Science 8525 specification](https://www.aqa.org.uk/subjects/computer-science/gcse/computer-science-8525/specification/subject-content/fundamentals-of-data-representation) also specifies number-base conversion, binary addition and logical shifts. The [archived Bag of Cows homepage](https://web.archive.org/web/20191023212751id_/http://bagofcows.com/) describes the original binary question generator's coverage of conversions, fractions, two's complement, and real numbers with mantissa and exponent. The live Bag of Cows site now redirects to its retirement notice.
+The [AQA A-level Computer Science specification](https://www.aqa.org.uk/subjects/computer-science/a-level/computer-science-7517/specification/subject-content/fundamentals-of-data-representation) informs number-base and binary fraction coverage. The [archived Bag of Cows homepage](https://web.archive.org/web/20191023212751id_/http://bagofcows.com/) describes the original generator's conversions, fractions, two's complement, and mantissa/exponent questions. The live Bag of Cows site now redirects to its retirement notice.
 
 ## Run locally
 

@@ -7,6 +7,16 @@ const conversionQuestionTypes = [
   'hex-to-denary',
 ];
 
+const floatingPointQuestionTypes = [
+  'floating-point-encode',
+  'floating-point-decode',
+  'floating-point-normalise',
+  'floating-point-exponent',
+];
+
+const FLOAT_MANTISSA_BITS = 8;
+const FLOAT_EXPONENT_BITS = 4;
+
 export const tierCatalog = {
   'KS3': {
     label: 'KS3',
@@ -50,7 +60,8 @@ export const tierCatalog = {
       'bit-capacity',
       'binary-shift',
       'binary-fraction-to-denary',
-      'floating-point',
+      'denary-to-binary-fraction',
+      ...floatingPointQuestionTypes,
     ],
     binaryLength: [6, 16],
     conversionRange: [0, 255],
@@ -59,8 +70,11 @@ export const tierCatalog = {
   },
   'A-Level AS': {
     label: 'A-Level AS',
-    description: 'Signed two’s-complement conversion and arithmetic, with base conversions and real numbers.',
+    description: 'Floating-point and binary-fraction practice with signed arithmetic and base conversions.',
     questionTypes: [
+      ...floatingPointQuestionTypes,
+      'binary-fraction-to-denary',
+      'denary-to-binary-fraction',
       'two-complement-encode',
       'two-complement-decode',
       'two-complement-addition',
@@ -68,14 +82,8 @@ export const tierCatalog = {
       'binary-addition',
       'binary-subtraction',
       ...conversionQuestionTypes,
-      'two-complement-encode',
-      'two-complement-decode',
-      'two-complement-addition',
-      'two-complement-subtraction',
       'bit-capacity',
       'binary-shift',
-      'binary-fraction-to-denary',
-      'floating-point',
     ],
     binaryLength: [8, 16],
     conversionRange: [0, 255],
@@ -84,8 +92,11 @@ export const tierCatalog = {
   },
   'A-Level A2': {
     label: 'A-Level A2',
-    description: 'Extended signed arithmetic, conversions, binary fractions and floating-point values.',
+    description: 'A-level floating-point, binary fractions, signed arithmetic and conversions.',
     questionTypes: [
+      ...floatingPointQuestionTypes,
+      'binary-fraction-to-denary',
+      'denary-to-binary-fraction',
       'two-complement-encode',
       'two-complement-decode',
       'two-complement-addition',
@@ -93,14 +104,8 @@ export const tierCatalog = {
       'binary-addition',
       'binary-subtraction',
       ...conversionQuestionTypes,
-      'two-complement-encode',
-      'two-complement-decode',
-      'two-complement-addition',
-      'two-complement-subtraction',
       'bit-capacity',
       'binary-shift',
-      'binary-fraction-to-denary',
-      'floating-point',
     ],
     binaryLength: [8, 24],
     conversionRange: [0, 255],
@@ -111,6 +116,20 @@ export const tierCatalog = {
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function makeFloatingPointExample() {
+  const mantissaValue = randomInt(0, 1) === 0
+    ? randomInt(64, 127)
+    : randomInt(-128, -65);
+  const exponentValue = randomInt(-3, 3);
+  const mantissa = toTwosComplement(mantissaValue, FLOAT_MANTISSA_BITS);
+  const exponent = toTwosComplement(exponentValue, FLOAT_EXPONENT_BITS);
+  return {
+    mantissa,
+    exponent,
+    value: decodeFloatingPoint(mantissa, exponent).value,
+  };
 }
 
 export function toDenary(binaryValue) {
@@ -139,6 +158,50 @@ export function toHex(decimalValue) {
     throw new Error(`Invalid decimal value: ${decimalValue}`);
   }
   return value.toString(16).toUpperCase();
+}
+
+export function binaryFractionToDenary(binaryValue) {
+  const value = String(binaryValue).trim().replace(/\s+/g, '');
+  const match = value.match(/^(-?)([01]*)(?:\.([01]*))?$/);
+  if (!match || (!match[2] && !match[3])) {
+    throw new Error(`Invalid binary fraction: ${binaryValue}`);
+  }
+
+  const [, sign, integerBits, fractionBits = ''] = match;
+  const integerValue = integerBits ? toDenary(integerBits) : 0;
+  const fractionalValue = [...fractionBits].reduce(
+    (total, bit, index) => total + Number(bit) / (2 ** (index + 1)),
+    0,
+  );
+  return (sign ? -1 : 1) * (integerValue + fractionalValue);
+}
+
+export function denaryToBinaryFraction(decimalValue, fractionalBits = 8) {
+  const value = Number(decimalValue);
+  const width = Number(fractionalBits);
+  if (!Number.isFinite(value) || !Number.isInteger(width) || width < 1 || width > 52) {
+    throw new Error(`Invalid binary fraction: ${decimalValue}`);
+  }
+
+  const sign = value < 0 ? '-' : '';
+  const absoluteValue = Math.abs(value);
+  const integer = Math.floor(absoluteValue);
+  let fraction = absoluteValue - integer;
+  let bits = '';
+  for (let index = 0; index < width; index += 1) {
+    fraction *= 2;
+    if (fraction >= 1) {
+      bits += '1';
+      fraction -= 1;
+    } else {
+      bits += '0';
+    }
+  }
+
+  if (fraction > 1e-10) {
+    throw new Error(`${decimalValue} is not exactly representable with ${width} fractional bits`);
+  }
+  return `${sign}${toBinary(integer)}.${bits}`;
 }
 
 export function toTwosComplement(value, bits) {
@@ -170,6 +233,65 @@ export function twoComplement(value, bits) {
   return signedValue;
 }
 
+export function isNormalisedMantissa(mantissaBits) {
+  const bits = String(mantissaBits).replace(/\s+/g, '');
+  return /^[01]{2,}$/.test(bits) && bits[0] !== bits[1];
+}
+
+export function decodeFloatingPoint(mantissaBits, exponentBits) {
+  const mantissa = String(mantissaBits).replace(/\s+/g, '');
+  const exponent = String(exponentBits).replace(/\s+/g, '');
+  if (!/^[01]+$/.test(mantissa) || !/^[01]+$/.test(exponent)) {
+    throw new Error('Floating-point mantissa and exponent must be binary bit patterns');
+  }
+
+  const signedMantissa = twoComplement(toDenary(mantissa), mantissa.length);
+  const signedExponent = twoComplement(toDenary(exponent), exponent.length);
+  const value = (signedMantissa / (2 ** (mantissa.length - 1))) * (2 ** signedExponent);
+  return {
+    value,
+    normalised: isNormalisedMantissa(mantissa),
+    exponent: signedExponent,
+  };
+}
+
+export function encodeFloatingPoint(value, mantissaWidth = FLOAT_MANTISSA_BITS, exponentWidth = FLOAT_EXPONENT_BITS) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number === 0
+      || !Number.isInteger(mantissaWidth) || mantissaWidth < 2 || mantissaWidth > 52
+      || !Number.isInteger(exponentWidth) || exponentWidth < 1 || exponentWidth > 52) {
+    throw new Error(`Invalid floating-point value or format: ${value}`);
+  }
+
+  let exponent = Math.floor(Math.log2(Math.abs(number))) + 1;
+  if (number < 0 && Math.abs(number / (2 ** exponent)) === 0.5) {
+    exponent -= 1;
+  }
+  const mantissaValue = number / (2 ** exponent);
+  const mantissaInteger = Math.round(mantissaValue * (2 ** (mantissaWidth - 1)));
+  const representedValue = (mantissaInteger / (2 ** (mantissaWidth - 1))) * (2 ** exponent);
+  if (Math.abs(representedValue - number) > Math.max(1, Math.abs(number)) * 1e-12) {
+    throw new Error(`${value} is not exactly representable in this floating-point format`);
+  }
+
+  const mantissa = toTwosComplement(mantissaInteger, mantissaWidth);
+  const exponentBits = toTwosComplement(exponent, exponentWidth);
+  if (!isNormalisedMantissa(mantissa)) {
+    throw new Error(`${value} cannot be normalised in this floating-point format`);
+  }
+  return { mantissa, exponent: exponentBits };
+}
+
+export function normaliseFloatingPoint(mantissaBits, exponentBits) {
+  const decoded = decodeFloatingPoint(mantissaBits, exponentBits);
+  if (decoded.value === 0) {
+    throw new Error('Zero has no normalised floating-point representation');
+  }
+  const mantissa = String(mantissaBits).replace(/\s+/g, '');
+  const exponent = String(exponentBits).replace(/\s+/g, '');
+  return encodeFloatingPoint(decoded.value, mantissa.length, exponent.length);
+}
+
 export function parseAnswerValue(raw, base = 10) {
   const text = String(raw).trim().toLowerCase();
   if (!text) return null;
@@ -195,10 +317,10 @@ export function evaluateAnswer(question, userAnswer) {
 
   if (typeof expected === 'number') {
     const parsed = parseAnswerValue(raw, 10);
-    if (parsed !== null) return Math.abs(parsed - expected) < 1e-9;
+    if (parsed !== null && Math.abs(parsed - expected) < 1e-9) return true;
+    if (question.type !== 'hex-to-denary') return false;
     const hexParsed = parseAnswerValue(raw, 16);
-    if (hexParsed !== null) return Math.abs(hexParsed - expected) < 1e-9;
-    return false;
+    return hexParsed !== null && hexParsed === expected;
   }
 
   if (typeof expected === 'string') {
@@ -213,7 +335,21 @@ export function evaluateAnswer(question, userAnswer) {
   return false;
 }
 
-function makeBinaryQuestion(tier, type) {
+export function markAnswers(questions, answers) {
+  const results = questions.map((question, index) => {
+    const correct = evaluateAnswer(question, answers[index]);
+    return {
+      correct,
+      answer: question.answer,
+    };
+  });
+  return {
+    results,
+    score: results.filter(({ correct }) => correct).length,
+  };
+}
+
+function makeQuestion(tier, type) {
   const [minimumLength, maximumLength] = tier.binaryLength;
   const bitLength = Math.min(randomInt(minimumLength, maximumLength), 8);
   const rawValue = randomInt(0, Math.min(tier.conversionRange[1], 2 ** bitLength - 1));
@@ -387,28 +523,68 @@ function makeBinaryQuestion(tier, type) {
   }
 
   if (type === 'binary-fraction-to-denary') {
-    const fractionBits = toBinary(randomInt(1, 15)).padStart(4, '0');
-    const value = [...fractionBits].reduce(
-      (total, bit, index) => total + Number(bit) / (2 ** (index + 1)),
-      0,
-    );
+    const fractionWidth = randomInt(4, 6);
+    const fractionBits = toBinary(randomInt(1, (2 ** fractionWidth) - 1))
+      .padStart(fractionWidth, '0');
     return {
       type,
       prompt: `Convert the binary fraction 0.${fractionBits}₂ to denary.`,
-      answer: Number(value.toFixed(4)),
+      answer: binaryFractionToDenary(`0.${fractionBits}`),
     };
   }
 
-  if (type === 'floating-point') {
-    const mantissaBits = randomInt(3, 8);
-    const exponent = randomInt(-3, 3);
-    const mantissa = randomInt(2 ** (mantissaBits - 1), (2 ** mantissaBits) - 1);
-    const mantissaBinary = toBinary(mantissa).padStart(mantissaBits, '0');
-    const value = (mantissa / (2 ** mantissaBits)) * (2 ** exponent);
+  if (type === 'denary-to-binary-fraction') {
+    const fractionWidth = randomInt(4, 6);
+    const fractionBits = toBinary(randomInt(1, (2 ** fractionWidth) - 1))
+      .padStart(fractionWidth, '0');
+    const value = binaryFractionToDenary(`0.${fractionBits}`);
     return {
       type,
-      prompt: `A normalised binary floating-point value has mantissa 0.${mantissaBinary}₂ and exponent ${exponent}. What is its denary value to 3 d.p.?`,
-      answer: Number(value.toFixed(3)),
+      prompt: `Convert ${value} to binary with ${fractionWidth} fractional bits.`,
+      answer: denaryToBinaryFraction(value, fractionWidth),
+    };
+  }
+
+  if (type === 'floating-point-encode') {
+    const example = makeFloatingPointExample();
+    const encoded = encodeFloatingPoint(example.value);
+    return {
+      type,
+      prompt: `Convert ${example.value} to normalized floating point (8-bit signed mantissa, point after sign bit; 4-bit two's-complement exponent).`,
+      answer: `${encoded.mantissa} ${encoded.exponent}`,
+    };
+  }
+
+  if (type === 'floating-point-decode' || type === 'floating-point') {
+    const example = makeFloatingPointExample();
+    return {
+      type,
+      prompt: `Convert mantissa ${example.mantissa} and 4-bit two's-complement exponent ${example.exponent} to denary (point after mantissa sign bit).`,
+      answer: example.value,
+    };
+  }
+
+  if (type === 'floating-point-normalise') {
+    const mantissaValue = randomInt(0, 1) === 0
+      ? randomInt(32, 63)
+      : randomInt(-64, -33);
+    const exponentValue = randomInt(-4, 2);
+    const mantissa = toTwosComplement(mantissaValue, FLOAT_MANTISSA_BITS);
+    const exponent = toTwosComplement(exponentValue, FLOAT_EXPONENT_BITS);
+    const normalised = normaliseFloatingPoint(mantissa, exponent);
+    return {
+      type,
+      prompt: `Normalise mantissa ${mantissa} and exponent ${exponent} (8-bit signed fraction, 4-bit two's-complement exponent).`,
+      answer: `${normalised.mantissa} ${normalised.exponent}`,
+    };
+  }
+
+  if (type === 'floating-point-exponent') {
+    const direction = randomInt(0, 1) === 0 ? 'increases' : 'decreases';
+    return {
+      type,
+      prompt: `If the exponent ${direction} by 1 and the mantissa stays the same, what happens to the value?`,
+      answer: direction === 'increases' ? 'doubles' : 'halves',
     };
   }
 
@@ -419,7 +595,7 @@ export function generateQuestion(tierName, typeOverride) {
   const tier = tierCatalog[tierName] || tierCatalog['GCSE Higher'];
   const typeList = tier.questionTypes;
   const selectedType = typeOverride || typeList[randomInt(0, typeList.length - 1)];
-  return makeBinaryQuestion(tier, selectedType);
+  return makeQuestion(tier, selectedType);
 }
 
 export function generateQuestionSet(tierName, quantity = 10) {

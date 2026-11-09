@@ -1,29 +1,27 @@
-import { tierCatalog, generateQuestionSet, evaluateAnswer } from './logic.js';
+import { tierCatalog, generateQuestionSet, markAnswers } from './logic.js';
 
 const tierSelect = document.querySelector('#tierSelect');
 const quantityInput = document.querySelector('#questionCount');
-const generateButton = document.querySelector('#generateQuestions');
+const refreshButton = document.querySelector('#refreshQuestions');
 const questionList = document.querySelector('#questionList');
 const scorePanel = document.querySelector('#scorePanel');
-const answersToggle = document.querySelector('#toggleAnswers');
-const seedCode = document.querySelector('#seedCode');
 let currentQuestions = [];
 
 function populateTierOptions() {
   Object.entries(tierCatalog).forEach(([key, tier]) => {
     const option = document.createElement('option');
     option.value = key;
-    option.textContent = `${tier.label} — ${tier.description}`;
+    option.textContent = tier.label;
     tierSelect.appendChild(option);
   });
 }
 
 function renderSet(questions) {
-  questionList.innerHTML = '';
+  questionList.replaceChildren();
   currentQuestions = questions;
 
   questions.forEach((question, index) => {
-    const card = document.createElement('div');
+    const card = document.createElement('article');
     card.className = 'question-card';
 
     const label = document.createElement('p');
@@ -37,59 +35,63 @@ function renderSet(questions) {
     const input = document.createElement('input');
     input.type = 'text';
     input.name = `q-${index}`;
-    input.placeholder = 'Type your answer';
+    input.placeholder = 'Your answer';
+    input.setAttribute('aria-label', `Answer to question ${index + 1}`);
     input.dataset.index = String(index);
     input.className = 'answer-input';
 
-    const reveal = document.createElement('div');
-    reveal.className = 'answer-reveal hidden';
-    reveal.textContent = `Answer: ${question.answer}`;
+    const feedback = document.createElement('p');
+    feedback.className = 'answer-feedback hidden';
+    feedback.setAttribute('aria-live', 'polite');
 
-    card.append(label, prompt, input, reveal);
+    card.append(label, prompt, input, feedback);
     questionList.appendChild(card);
   });
 
   scorePanel.classList.add('hidden');
-  answersToggle.checked = false;
-}
-
-function updateAnswerVisibility(isVisible) {
-  const reveals = document.querySelectorAll('.answer-reveal');
-  reveals.forEach((node) => {
-    node.classList.toggle('hidden', !isVisible);
-  });
 }
 
 function checkAnswers() {
-  let score = 0;
-  const inputs = [...document.querySelectorAll('.answer-input')];
-  inputs.forEach((input) => {
-    const index = Number(input.dataset.index);
-    const question = currentQuestions[index];
-    const isCorrect = evaluateAnswer(question, input.value);
-    if (isCorrect) score += 1;
-    input.classList.toggle('correct', isCorrect);
-    input.classList.toggle('incorrect', !isCorrect && input.value.trim() !== '');
+  const inputs = [...questionList.querySelectorAll('.answer-input')];
+  const { results, score } = markAnswers(
+    currentQuestions,
+    inputs.map((input) => input.value),
+  );
+
+  inputs.forEach((input, index) => {
+    const result = results[index];
+    const feedback = input.nextElementSibling;
+    input.classList.toggle('correct', result.correct);
+    input.classList.toggle('incorrect', !result.correct);
+    feedback.textContent = `${result.correct ? 'Correct' : 'Not quite'} — answer: ${result.answer}`;
+    feedback.classList.remove('hidden');
+    feedback.classList.toggle('correct-text', result.correct);
+    feedback.classList.toggle('incorrect-text', !result.correct);
   });
 
   scorePanel.textContent = `Score: ${score} / ${currentQuestions.length}`;
   scorePanel.classList.remove('hidden');
 }
 
-function generateSet() {
-  const tier = tierSelect.value;
-  const count = Number(quantityInput.value) || 10;
-  const qSet = generateQuestionSet(tier, count);
-  seedCode.value = `${tier.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString().slice(-6)}`;
-  renderSet(qSet);
+function clearFeedback(event) {
+  const input = event.target.closest('.answer-input');
+  if (!input) return;
+  input.classList.remove('correct', 'incorrect');
+  const feedback = input.nextElementSibling;
+  feedback.classList.add('hidden');
+  scorePanel.classList.add('hidden');
 }
 
-generateButton.addEventListener('click', generateSet);
-answersToggle.addEventListener('change', () => updateAnswerVisibility(answersToggle.checked));
-document.querySelector('#checkAnswers').addEventListener('click', checkAnswers);
+function refreshQuestions() {
+  const count = Math.min(30, Math.max(1, Number(quantityInput.value) || 10));
+  quantityInput.value = String(count);
+  renderSet(generateQuestionSet(tierSelect.value, count));
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  populateTierOptions();
-  tierSelect.value = 'GCSE Higher';
-  generateSet();
-});
+refreshButton.addEventListener('click', refreshQuestions);
+document.querySelector('#checkAnswers').addEventListener('click', checkAnswers);
+questionList.addEventListener('input', clearFeedback);
+
+populateTierOptions();
+tierSelect.value = 'A-Level AS';
+refreshQuestions();
