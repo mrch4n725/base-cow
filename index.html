@@ -4,42 +4,53 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Base Cow — Number Representation Practice</title>
+    <meta name="description" content="Number representation practice for Computer Science. Need a refresher? See the Resources." />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div class="brand-wrap">
-        <div class="brand-badge">B^C</div>
-        <div>
-          <p class="eyebrow">Inspired by bagofcows.com</p>
-          <h1>Base Cow</h1>
+        <div class="brand-row">
+          <div class="brand-badge">B^C</div>
+          <div class="brand-title">
+            <p class="eyebrow">Inspired by bagofcows.com</p>
+            <h1>Base Cow</h1>
+          </div>
+          <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">
+            Dark mode
+          </button>
         </div>
-        <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">
-          Dark mode
-        </button>
+        <p id="tierTagline" class="tagline"></p>
       </div>
     </header>
 
     <main class="page-shell">
-      <section class="panel intro-panel">
-        <p>Number representation practice for Computer Science. Need a refresher? See the <a href="#resources">Resources</a>.</p>
-      </section>
-
       <section class="panel controls-panel">
-        <label>
-          Tier
-          <select id="tierSelect"></select>
-        </label>
+        <fieldset class="tier-selector">
+          <legend>Tier</legend>
+          <div id="tierOptions" class="tier-options" role="radiogroup" aria-label="Choose a tier"></div>
+          <p id="tierDescription" class="control-description"></p>
+        </fieldset>
 
-        <label>
-          Questions
-          <input id="questionCount" type="number" min="1" max="30" value="10" inputmode="numeric" />
-        </label>
+        <fieldset class="topic-selector">
+          <legend>Topics</legend>
+          <div id="topicOptions" class="topic-options"></div>
+          <p id="topicValidation" class="control-error hidden" role="alert"></p>
+        </fieldset>
 
-        <div class="button-row">
-          <button id="refreshQuestions" type="button" class="secondary">Refresh questions</button>
-          <button id="checkAnswers" type="button">Check answers</button>
+        <div class="practice-controls">
+          <label>
+            Questions
+            <input id="questionCount" type="number" min="1" max="30" value="10" inputmode="numeric" />
+          </label>
+
+          <div class="button-row">
+            <button id="refreshQuestions" type="button" class="secondary">Refresh questions</button>
+            <button id="checkAnswers" type="button">Check answers</button>
+          </div>
         </div>
+
+        <p class="controls-help">Need a refresher? See the <a href="#resources">Resources</a>.</p>
       </section>
 
       <section class="panel question-panel">

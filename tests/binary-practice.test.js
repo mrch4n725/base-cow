@@ -16,6 +16,7 @@ import {
   generateQuestion,
   generateQuestionSet,
   tierCatalog,
+  topicCatalog,
   evaluateAnswer,
   markAnswers,
 } from '../logic.js';
@@ -130,40 +131,49 @@ test('all binary, denary and hexadecimal conversion directions are generated', (
   });
 });
 
-test('higher-tier sets prioritize signed arithmetic and rotate through every base conversion', () => {
-  const questions = generateQuestionSet('GCSE Higher', 10);
-  assert.deepEqual(
-    questions.slice(0, 6).map(({ type }) => type),
-    [
-      'two-complement-encode',
-      'two-complement-decode',
-      'two-complement-addition',
-      'two-complement-subtraction',
-      'binary-addition',
-      'binary-subtraction',
+test('tier topic lists match the intended curriculum progression', () => {
+  const expectedTopics = {
+    KS3: ['binary-denary', 'hexadecimal', 'binary-shifts'],
+    'GCSE Foundation': [
+      'binary-denary',
+      'hexadecimal',
+      'binary-shifts',
+      'binary-arithmetic',
     ],
-  );
-  assert.deepEqual(
-    questions.slice(6).map(({ type }) => type),
-    [
-      'binary-to-denary',
-      'denary-to-binary',
-      'binary-to-hex',
-      'hex-to-binary',
+    'GCSE Higher': [
+      'binary-denary',
+      'hexadecimal',
+      'binary-shifts',
+      'binary-arithmetic',
     ],
-  );
-  const fullCycle = generateQuestionSet('GCSE Higher', 20).map(({ type }) => type);
-  assert.equal(fullCycle.filter((type) => type.startsWith('two-complement-')).length, 8);
-  for (const type of [
-    'binary-to-denary',
-    'denary-to-binary',
-    'binary-to-hex',
-    'hex-to-binary',
-    'denary-to-hex',
-    'hex-to-denary',
-  ]) {
-    assert.ok(fullCycle.includes(type), `${type} is part of the full rotation`);
-  }
+    'A-Level AS': Object.keys(topicCatalog),
+    'A-Level A2': Object.keys(topicCatalog),
+  };
+
+  Object.entries(expectedTopics).forEach(([tierName, topics]) => {
+    assert.deepEqual(tierCatalog[tierName].topics, topics);
+    assert.deepEqual(
+      tierCatalog[tierName].questionTypes,
+      topics.flatMap((topicId) => topicCatalog[topicId].questionTypes),
+    );
+  });
+});
+
+test('question sets filter unavailable topics and cover each enabled topic', () => {
+  const selectedTopics = ['binary-denary', 'hexadecimal'];
+  const questions = generateQuestionSet('GCSE Foundation', selectedTopics.length, selectedTopics);
+  const usedTopics = new Set(questions.map(({ type }) => (
+    Object.entries(topicCatalog).find(([, topic]) => topic.questionTypes.includes(type))[0]
+  )));
+  assert.deepEqual([...usedTopics].sort(), [...selectedTopics].sort());
+
+  const filtered = generateQuestionSet('KS3', 10, ['hexadecimal', 'floating-point']);
+  assert.equal(filtered.length, 10);
+  filtered.forEach(({ type }) => {
+    assert.ok(topicCatalog.hexadecimal.questionTypes.includes(type));
+  });
+
+  assert.deepEqual(generateQuestionSet('GCSE Higher', 10, []), []);
 });
 
 test('two-complement questions encode, decode and calculate signed values correctly', () => {
@@ -221,7 +231,9 @@ test('supporting questions and generated floating-point conversions are mathemat
       }
 
       if (type === 'floating-point-normalise') {
-        const [, inputMantissa, inputExponent] = question.prompt.match(/mantissa ([01]{8}) and exponent ([01]{4})/);
+        const [, inputMantissa, inputExponent] = question.prompt.match(
+          /8-bit mantissa ([01]{8}) and the 4-bit exponent ([01]{4})/,
+        );
         const [mantissa, exponent] = question.answer.split(' ');
         assert.ok(
           Math.abs(
@@ -253,8 +265,13 @@ test('answer marking reports concise correctness and the right answer', () => {
   const marked = markAnswers(questions, ['0.625', 'wrong']);
   assert.deepEqual(marked, {
     results: [
-      { correct: true, answer: 0.625 },
-      { correct: false, answer: '01010000 0000' },
+      { correct: true, answer: 0.625, reason: '', working: [] },
+      {
+        correct: false,
+        answer: '01010000 0000',
+        reason: 'Floating-point answers must contain binary mantissa and exponent bits.',
+        working: [],
+      },
     ],
     score: 1,
   });
@@ -265,7 +282,7 @@ test('answer checking respects binary, hexadecimal, numeric and floating-point f
   assert.equal(evaluateAnswer({ type: 'denary-to-hex', answer: '1A' }, '0b1a'), false);
   assert.equal(evaluateAnswer({ type: 'denary-to-hex', answer: 'A' }, '000a'), true);
   assert.equal(evaluateAnswer({ type: 'hex-to-binary', answer: '00011010' }, '0b0001 1010'), true);
-  assert.equal(evaluateAnswer({ type: 'hex-to-binary', answer: '00011010' }, '11010'), true);
+  assert.equal(evaluateAnswer({ type: 'hex-to-binary', answer: '00011010' }, '11010'), false);
   assert.equal(evaluateAnswer({ type: 'denary-to-binary', answer: '1010' }, '00001010'), true);
   assert.equal(evaluateAnswer({ type: 'binary-to-hex', answer: '1A' }, '1a'), true);
   assert.equal(evaluateAnswer({ type: 'binary-to-hex', answer: '1A' }, '0b1A'), false);
@@ -288,24 +305,179 @@ test('answer checking respects binary, hexadecimal, numeric and floating-point f
   );
 });
 
-test('A-level practice sets start with fractional and floating-point questions', () => {
-  for (const tier of ['A-Level AS', 'A-Level A2']) {
-    const questions = generateQuestionSet(tier, 10);
-    assert.deepEqual(
-      questions.slice(0, 6).map(({ type }) => type),
-      [
-        'floating-point-encode',
-        'floating-point-decode',
-        'floating-point-normalise',
-        'floating-point-exponent-decode',
-        'binary-fraction-to-denary',
-        'denary-to-binary-fraction',
-      ],
-    );
-    questions.forEach((question) => {
-      assert.equal(evaluateAnswer(question, question.answer), true, `${tier}: ${question.type}`);
+test('every generated question carries non-empty working and format metadata', () => {
+  Object.entries(tierCatalog).forEach(([tierName, tier]) => {
+    [...new Set(tier.questionTypes)].forEach((type) => {
+      const question = generateQuestion(tierName, type);
+      assert.ok(Array.isArray(question.working) && question.working.length > 0, `${type} working`);
+      assert.ok(question.format && typeof question.format.kind === 'string', `${type} format`);
+      assert.ok(question.working.every((step) => typeof step === 'string' && step.length > 0));
     });
+  });
+
+  const widthPrompts = [
+    ['hex-to-binary', /using \d+ bits/],
+    ['two-complement-encode', /using \d+ bits/],
+    ['two-complement-addition', /using \d+-bit two's complement.*Give the \d+-bit/],
+    ['two-complement-subtraction', /using \d+-bit two's complement.*Give the \d+-bit/],
+    ['binary-shift', /Give the 8-bit result/],
+    ['denary-to-binary-fraction', /with \d+ fractional bits/],
+    ['floating-point-encode', /8-bit signed mantissa and a 4-bit exponent/],
+    ['floating-point-normalise', /8-bit mantissa and a 4-bit exponent/],
+    ['floating-point-decode', /8-bit mantissa .*4-bit two's-complement exponent/],
+  ];
+  widthPrompts.forEach(([type, pattern]) => {
+    assert.match(generateQuestion('A-Level AS', type).prompt, pattern, type);
+  });
+});
+
+test('value-only formats compare values and allow leading zeros, prefixes, whitespace and minus signs', () => {
+  const cases = [
+    [{ type: 'binary-to-denary', answer: 10 }, '0b 0000 1010'],
+    [{ type: 'hex-to-denary', answer: 26 }, '0X001a'],
+    [{ type: 'denary-to-binary', answer: '1010' }, '0000 1010'],
+    [{ type: 'binary-to-hex', answer: 'A' }, '0x000a'],
+    [{ type: 'denary-to-hex', answer: 'A' }, '0X000A'],
+    [{ type: 'binary-addition', answer: '1010' }, '00001010'],
+    [{ type: 'binary-subtraction', answer: '1010' }, '00001010'],
+    [{ type: 'bit-capacity', answer: 3 }, '003'],
+    [{ type: 'binary-fraction-to-denary', answer: 0.625 }, '0.6250'],
+    [{ type: 'floating-point-decode', answer: -0.75 }, '−0.750'],
+    [{ type: 'floating-point-exponent-decode', answer: -1 }, '−01'],
+    [{ type: 'two-complement-decode', answer: -1 }, '−1.0'],
+  ];
+  cases.forEach(([question, answer]) => assert.equal(evaluateAnswer(question, answer), true));
+});
+
+test('width-stated answers enforce widths and explain correct values with the wrong length', () => {
+  const wrongLengthAnswers = [
+    [
+      {
+        type: 'two-complement-encode',
+        answer: '11111111',
+        format: { kind: 'binary', width: 8, signed: true },
+      },
+      '1111',
+      'Right value, but this answer needs 8 bits.',
+    ],
+    [
+      {
+        type: 'two-complement-addition',
+        answer: '11111111',
+        format: { kind: 'binary', width: 8, signed: true },
+      },
+      '1111',
+      'Right value, but this answer needs 8 bits.',
+    ],
+    [
+      {
+        type: 'two-complement-subtraction',
+        answer: '11111111',
+        format: { kind: 'binary', width: 8, signed: true },
+      },
+      '1111',
+      'Right value, but this answer needs 8 bits.',
+    ],
+    [
+      {
+        type: 'binary-shift',
+        answer: '00001010',
+        format: { kind: 'binary', width: 8 },
+      },
+      '1010',
+      'Right value, but this answer needs 8 bits.',
+    ],
+    [
+      {
+        type: 'hex-to-binary',
+        answer: '00011010',
+        format: { kind: 'binary', width: 8 },
+      },
+      '11010',
+      'Right value, but this answer needs 8 bits.',
+    ],
+    [
+      {
+        type: 'denary-to-binary-fraction',
+        answer: '0.101',
+        format: { kind: 'binary-fraction', fractionalBits: 3 },
+      },
+      '0.1010',
+      'Right value, but this answer needs 3 bits.',
+    ],
+  ];
+  wrongLengthAnswers.forEach(([question, answer, reason]) => {
+    const result = markAnswers([question], [answer]).results[0];
+    assert.equal(result.correct, false, question.type);
+    assert.equal(result.reason, reason, question.type);
+  });
+
+  const floatQuestion = {
+    type: 'floating-point-encode',
+    answer: '01010000 0000',
+    format: { kind: 'floating-point', mantissaWidth: 8, exponentWidth: 4 },
+  };
+  const normaliseQuestion = {
+    ...floatQuestion,
+    type: 'floating-point-normalise',
+  };
+  [' ', ',', ';', ':', '|', '/'].forEach((separator) => {
+    const answer = `0b01010000${separator}0b0000`;
+    assert.equal(evaluateAnswer(floatQuestion, answer), true, separator);
+    assert.equal(evaluateAnswer(normaliseQuestion, answer), true, separator);
+  });
+  assert.equal(evaluateAnswer(floatQuestion, '010100000000'), true);
+  assert.equal(markAnswers([floatQuestion], ['0101000 0000']).results[0].reason,
+    'The mantissa needs 8 bits.');
+  assert.equal(markAnswers([floatQuestion], ['01010000 000']).results[0].reason,
+    'The exponent needs 4 bits.');
+  assert.equal(markAnswers([floatQuestion], ['01010001 0000']).results[0].reason,
+    'The mantissa is incorrect.');
+  assert.equal(markAnswers([floatQuestion], ['01010000 0001']).results[0].reason,
+    'The exponent is incorrect.');
+});
+
+test('invalid answer characters return useful format-specific reasons', () => {
+  const answers = [
+    [{ type: 'denary-to-binary', answer: '1010' }, '102', 'Binary answers can only contain 0 and 1.'],
+    [{ type: 'denary-to-hex', answer: 'A' }, 'G', 'Hexadecimal answers can only contain 0–9 and A–F.'],
+    [
+      {
+        type: 'denary-to-binary-fraction',
+        answer: '0.101',
+        format: { kind: 'binary-fraction', fractionalBits: 3 },
+      },
+      '0.12',
+      'Binary fraction answers can only contain 0 and 1 with an optional leading minus sign.',
+    ],
+    [{ type: 'binary-to-denary', answer: 10 }, 'ten', 'Enter a denary number.'],
+  ];
+  answers.forEach(([question, answer, reason]) => {
+    assert.equal(markAnswers([question], [answer]).results[0].reason, reason);
+  });
+});
+
+test('A-level practice sets cover all topics while GCSE sets omit A-level-only topics', () => {
+  for (const tier of ['A-Level AS', 'A-Level A2']) {
+    const questions = generateQuestionSet(tier, tierCatalog[tier].topics.length);
+    const usedTopics = new Set(questions.map(({ type }) => (
+      Object.entries(topicCatalog).find(([, topic]) => topic.questionTypes.includes(type))[0]
+    )));
+    assert.deepEqual([...usedTopics].sort(), [...tierCatalog[tier].topics].sort());
+    questions.forEach((question) => assert.equal(
+      evaluateAnswer(question, question.answer),
+      true,
+      `${tier}: ${question.type}`,
+    ));
   }
+
+  const gcseQuestions = generateQuestionSet('GCSE Higher', 30);
+  gcseQuestions.forEach(({ type }) => {
+    assert.ok(!topicCatalog['binary-fractions'].questionTypes.includes(type));
+    assert.ok(!topicCatalog['floating-point'].questionTypes.includes(type));
+    assert.ok(!topicCatalog['twos-complement'].questionTypes.includes(type));
+    assert.ok(!topicCatalog['bit-capacity'].questionTypes.includes(type));
+  });
 });
 
 test('every configured tier topic generates a gradable question', () => {
