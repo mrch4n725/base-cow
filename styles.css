@@ -16,6 +16,7 @@
   --secondary: #e9e0d1;
   --secondary-ink: var(--primary-dark);
   --link: var(--primary-dark);
+  --focus: #64816d;
 }
 
 * {
@@ -102,7 +103,7 @@ h1 {
 }
 
 .panel {
-  background: rgba(255, 255, 255, 0.38);
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 18px 18px 16px;
@@ -192,7 +193,7 @@ a {
   padding: 8px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--panel);
   color: var(--ink);
   cursor: pointer;
   font-weight: 600;
@@ -287,7 +288,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 3px solid #82a8ff;
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -300,7 +301,7 @@ a:focus-visible {
   padding: 16px 16px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--panel-strong);
 }
 
 .question-label {
@@ -418,20 +419,21 @@ a:focus-visible {
 }
 
 body[data-theme="dark"] {
-  --page: #111b18;
-  --page-strong: #152420;
-  --panel: #1a2924;
-  --panel-strong: #1f312d;
-  --ink: #e7efe9;
-  --ink-soft: #d0d9d4;
-  --muted: #9bb0a7;
-  --line: #31453d;
-  --field: #12211d;
-  --secondary: #20332d;
-  --secondary-ink: #edf7ee;
-  --link: #bfe1d3;
-  --ok: #7ae0ad;
-  --bad: #ff9a8f;
+  --page: #111110;
+  --page-strong: #191816;
+  --panel: #1e1d1a;
+  --panel-strong: #252420;
+  --ink: #f2efe9;
+  --ink-soft: #ded8ce;
+  --muted: #b9b2a7;
+  --line: #3e3a34;
+  --field: #171614;
+  --secondary: #2b2924;
+  --secondary-ink: #f2eee6;
+  --link: #dfc59a;
+  --focus: #dfc59a;
+  --ok: #85c89b;
+  --bad: #f19a8f;
   color-scheme: dark;
 }
 
@@ -448,8 +450,8 @@ body[data-theme="dark"] {
 }
 
 body[data-theme="dark"] .theme-toggle {
-  background: rgb(255 255 255 / 7%);
-  border-color: rgb(255 255 255 / 18%);
+  background: var(--panel-strong);
+  border-color: var(--line);
   color: var(--ink);
 }
 
@@ -458,7 +460,7 @@ body[data-theme="dark"] .theme-toggle {
 }
 
 body[data-theme="dark"] .theme-toggle:hover {
-  background: rgb(255 255 255 / 12%);
+  background: var(--secondary);
 }
 
 @media (max-width: 680px) {
