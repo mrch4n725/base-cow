@@ -51,61 +51,75 @@ function getQuestionTypes(topics) {
 }
 
 const ks3Topics = ['binary-denary', 'hexadecimal', 'binary-shifts'];
-const foundationTopics = [...ks3Topics, 'binary-arithmetic'];
-const gcseHigherTopics = [...foundationTopics];
+const gcseTopics = [...ks3Topics, 'binary-arithmetic'];
 const aLevelTopics = Object.keys(topicCatalog);
 
+function makeTier(label, description, topics, {
+  binaryLength,
+  conversionRange = [0, 255],
+  arithmeticWidth = 8,
+  twoComplementWidths = [8],
+}) {
+  return {
+    label,
+    description,
+    topics,
+    questionTypes: getQuestionTypes(topics),
+    binaryLength,
+    conversionRange,
+    arithmeticWidth,
+    twoComplementWidths,
+  };
+}
+
 export const tierCatalog = {
-  'KS3': {
-    label: 'KS3',
-    description: 'Binary, denary and hexadecimal foundations with logical shifts.',
-    topics: ks3Topics,
-    questionTypes: getQuestionTypes(ks3Topics),
-    binaryLength: [4, 8],
-    conversionRange: [0, 255],
-    arithmeticWidth: 8,
-    twoComplementWidths: [8],
-  },
-  'GCSE Foundation': {
-    label: 'GCSE Foundation',
-    description: 'Byte-sized conversions, binary arithmetic and logical shifts.',
-    topics: foundationTopics,
-    questionTypes: getQuestionTypes(foundationTopics),
-    binaryLength: [4, 10],
-    conversionRange: [0, 255],
-    arithmeticWidth: 8,
-    twoComplementWidths: [8],
-  },
-  'GCSE Higher': {
-    label: 'GCSE Higher',
-    description: 'Advanced binary conversions, arithmetic and logical shifts.',
-    topics: gcseHigherTopics,
-    questionTypes: getQuestionTypes(gcseHigherTopics),
-    binaryLength: [6, 16],
-    conversionRange: [0, 255],
-    arithmeticWidth: 8,
-    twoComplementWidths: [8],
-  },
-  'A-Level AS': {
-    label: 'A-Level AS',
-    description: 'Floating-point and binary-fraction practice with signed arithmetic and base conversions.',
-    topics: aLevelTopics,
-    questionTypes: getQuestionTypes(aLevelTopics),
-    binaryLength: [8, 16],
-    conversionRange: [0, 255],
-    arithmeticWidth: 8,
-    twoComplementWidths: [8, 16],
-  },
-  'A-Level A2': {
-    label: 'A-Level A2',
-    description: 'A-level floating-point, binary fractions, signed arithmetic and conversions.',
-    topics: aLevelTopics,
-    questionTypes: getQuestionTypes(aLevelTopics),
-    binaryLength: [8, 24],
-    conversionRange: [0, 255],
-    arithmeticWidth: 8,
-    twoComplementWidths: [8, 16],
-  },
+  'KS3': makeTier(
+    'KS3',
+    'Binary, denary and hexadecimal foundations with logical shifts.',
+    ks3Topics,
+    {
+      binaryLength: [4, 8],
+    },
+  ),
+  'GCSE Foundation': makeTier(
+    'GCSE Foundation',
+    'Shorter conversions and 6-bit arithmetic with logical shifts.',
+    gcseTopics,
+    {
+      binaryLength: [4, 6],
+      conversionRange: [0, 63],
+      arithmeticWidth: 6,
+    },
+  ),
+  'GCSE Higher': makeTier(
+    'GCSE Higher',
+    'Byte-sized conversions and 8-bit arithmetic with logical shifts.',
+    gcseTopics,
+    {
+      binaryLength: [6, 8],
+      arithmeticWidth: 8,
+    },
+  ),
+  'A-Level AS': makeTier(
+    'A-Level AS',
+    'A-level topics with 8-bit signed arithmetic and floating-point practice.',
+    aLevelTopics,
+    {
+      binaryLength: [8, 16],
+      arithmeticWidth: 8,
+      twoComplementWidths: [8],
+    },
+  ),
+  'A-Level A2': makeTier(
+    'A-Level A2',
+    'The same A-level topics with 16-bit signed arithmetic and two’s complement.',
+    aLevelTopics,
+    {
+      binaryLength: [8, 24],
+      arithmeticWidth: 16,
+      twoComplementWidths: [16],
+    },
+  ),
 };
 
 function randomInt(min, max) {
@@ -605,7 +619,7 @@ function binaryOperationSteps(firstBits, secondBits, operator) {
   return lines;
 }
 
-function workingForQuestion(question, format) {
+function workingForQuestion(question, format, workingData) {
   const { type, prompt, answer } = question;
   const binaryOperands = [...prompt.matchAll(/([01]+)₂/g)].map((match) => match[1]);
 
@@ -802,9 +816,7 @@ function workingForQuestion(question, format) {
     ];
   }
   if (type === 'floating-point-normalise') {
-    const [, initialMantissa, initialExponent] = prompt.match(
-      /mantissa (?:the )?(?:8-bit )?([01]+) and (?:the )?(?:4-bit )?exponent ([01]+)/,
-    );
+    const { initialMantissa, initialExponent } = workingData;
     let mantissa = initialMantissa;
     let shifts = 0;
     while (!isNormalisedMantissa(mantissa) && shifts < mantissa.length) {
@@ -835,10 +847,11 @@ function workingForQuestion(question, format) {
 
 function attachQuestionMetadata(question) {
   const format = getGeneratedFormat(question.type, question.prompt, question.answer);
+  const { workingData, ...questionData } = question;
   return {
-    ...question,
+    ...questionData,
     format,
-    working: workingForQuestion(question, format),
+    working: workingForQuestion(question, format, workingData),
   };
 }
 
@@ -1075,6 +1088,10 @@ function makeQuestionBase(tier, type) {
       type,
       prompt: `Normalise the 8-bit mantissa ${mantissa} and the 4-bit exponent ${exponent} (point after the sign bit). Give an 8-bit mantissa and a 4-bit exponent.`,
       answer: `${normalised.mantissa} ${normalised.exponent}`,
+      workingData: {
+        initialMantissa: mantissa,
+        initialExponent: exponent,
+      },
     };
   }
 

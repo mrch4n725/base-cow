@@ -159,6 +159,50 @@ test('tier topic lists match the intended curriculum progression', () => {
   });
 });
 
+test('similar tiers share topics while keeping separate, progressively harder levels', () => {
+  assert.deepEqual(Object.keys(tierCatalog), [
+    'KS3',
+    'GCSE Foundation',
+    'GCSE Higher',
+    'A-Level AS',
+    'A-Level A2',
+  ]);
+  assert.equal(tierCatalog['GCSE Foundation'].topics, tierCatalog['GCSE Higher'].topics);
+  assert.equal(tierCatalog['A-Level AS'].topics, tierCatalog['A-Level A2'].topics);
+  assert.deepEqual(tierCatalog['GCSE Foundation'].conversionRange, [0, 63]);
+  assert.deepEqual(tierCatalog['GCSE Higher'].conversionRange, [0, 255]);
+  assert.deepEqual(tierCatalog['A-Level AS'].twoComplementWidths, [8]);
+  assert.deepEqual(tierCatalog['A-Level A2'].twoComplementWidths, [16]);
+
+  const originalRandom = Math.random;
+  try {
+    Math.random = () => 0.999;
+    const binaryWidths = [
+      ['GCSE Foundation', 6],
+      ['GCSE Higher', 8],
+      ['A-Level AS', 8],
+      ['A-Level A2', 8],
+    ];
+    binaryWidths.forEach(([tier, expectedWidth]) => {
+      const question = generateQuestion(tier, 'binary-to-denary');
+      const [, bits] = question.prompt.match(/Convert ([01]+)₂/);
+      assert.equal(bits.length, expectedWidth, tier);
+    });
+
+    const asShift = generateQuestion('A-Level AS', 'binary-shift');
+    const a2Shift = generateQuestion('A-Level A2', 'binary-shift');
+    assert.match(asShift.prompt, /Give the 8-bit result/);
+    assert.match(a2Shift.prompt, /Give the 16-bit result/);
+
+    const asSigned = generateQuestion('A-Level AS', 'two-complement-encode');
+    const a2Signed = generateQuestion('A-Level A2', 'two-complement-encode');
+    assert.match(asSigned.prompt, /using 8 bits/);
+    assert.match(a2Signed.prompt, /using 16 bits/);
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
 test('question sets filter unavailable topics and cover each enabled topic', () => {
   const selectedTopics = ['binary-denary', 'hexadecimal'];
   const questions = generateQuestionSet('GCSE Foundation', selectedTopics.length, selectedTopics);
@@ -254,6 +298,54 @@ test('supporting questions and generated floating-point conversions are mathemat
         assert.equal(binaryFractionToDenary(question.answer), Number(value));
       }
     }
+  }
+});
+
+test('floating-point normalisation working covers every mantissa and exponent combination', () => {
+  const mantissaValues = [16, 32, 48, -16, -32, -48];
+  const exponentValues = [-1, 0, 1, 2];
+  const originalRandom = Math.random;
+
+  try {
+    for (let mantissaIndex = 0; mantissaIndex < mantissaValues.length; mantissaIndex += 1) {
+      for (let exponentIndex = 0; exponentIndex < exponentValues.length; exponentIndex += 1) {
+        const randomValues = [
+          0,
+          0,
+          (mantissaIndex + 0.5) / mantissaValues.length,
+          (exponentIndex + 0.5) / exponentValues.length,
+        ];
+        let randomCall = 0;
+        Math.random = () => randomValues[randomCall++ % randomValues.length];
+
+        const question = generateQuestion('A-Level AS', 'floating-point-normalise');
+        const initialMantissa = toTwosComplement(mantissaValues[mantissaIndex], 8);
+        const initialExponent = toTwosComplement(exponentValues[exponentIndex], 4);
+        const [normalMantissa, normalExponent] = question.answer.split(' ');
+        const decodedExponent = twoComplement(toDenary(initialExponent), 4);
+        let shiftedMantissa = initialMantissa;
+        let shifts = 0;
+        while (!isNormalisedMantissa(shiftedMantissa)) {
+          shiftedMantissa = `${shiftedMantissa.slice(1)}0`;
+          shifts += 1;
+        }
+
+        assert.match(question.prompt, new RegExp(
+          `8-bit mantissa ${initialMantissa} and the 4-bit exponent ${initialExponent}`,
+        ));
+        assert.deepEqual(question.working, [
+          `Shift the mantissa left ${shifts} place${shifts === 1 ? '' : 's'} until its first two bits differ: ${normalMantissa}.`,
+          `Subtract ${shifts} from exponent ${decodedExponent}: ${decodedExponent} − ${shifts} = ${decodedExponent - shifts}.`,
+          `Encode the adjusted exponent in 4-bit two's complement: ${normalExponent}.`,
+        ]);
+        assert.equal(
+          decodeFloatingPoint(initialMantissa, initialExponent).value,
+          decodeFloatingPoint(normalMantissa, normalExponent).value,
+        );
+      }
+    }
+  } finally {
+    Math.random = originalRandom;
   }
 });
 
@@ -426,6 +518,7 @@ test('width-stated answers enforce widths and explain correct values with the wr
     assert.equal(evaluateAnswer(floatQuestion, answer), true, separator);
     assert.equal(evaluateAnswer(normaliseQuestion, answer), true, separator);
   });
+  assert.equal(markAnswers([normaliseQuestion], ['']).results[0].reason, 'Enter an answer.');
   assert.equal(evaluateAnswer(floatQuestion, '010100000000'), true);
   assert.equal(markAnswers([floatQuestion], ['0101000 0000']).results[0].reason,
     'The mantissa needs 8 bits.');

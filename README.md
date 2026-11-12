@@ -5,6 +5,7 @@ A lightweight, single-page revision tool inspired by the original Bag of Cows qu
 ## Features
 
 - Five tier choices, with descriptions and topic availability for KS3, GCSE Foundation, GCSE Higher, A-Level AS and A-Level A2
+- Shared topic coverage for similar levels, with shorter Foundation questions, byte-sized Higher/AS questions and 16-bit A2 signed arithmetic
 - Topic toggles; a refreshed set covers every selected topic when the question count is high enough
 - Binary, denary and hexadecimal conversions, arithmetic, shifts, and two's-complement
 - Binary fraction conversion in both directions
