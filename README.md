@@ -28,6 +28,11 @@ Then open:
 
 http://localhost:8000
 
+## Alternatively, go to: 
+```
+mrch4n725.github.io/base-cow/
+```
+
 ## Tests
 
 ```bash
