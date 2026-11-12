@@ -8,6 +8,10 @@
   --ok: #157347;
   --bad: #b42318;
   --line: #d7deea;
+  --field: #fff;
+  --secondary: #e9eef8;
+  --secondary-ink: var(--primary-dark);
+  --link: var(--primary-dark);
 }
 
 * {
@@ -80,7 +84,7 @@ h1 {
 }
 
 a {
-  color: var(--primary-dark);
+  color: var(--link);
 }
 
 .controls-panel {
@@ -105,7 +109,7 @@ input {
   border-radius: 6px;
   font: inherit;
   color: var(--ink);
-  background: #fff;
+  background: var(--field);
 }
 
 .button-row {
@@ -126,8 +130,8 @@ button {
 }
 
 button.secondary {
-  background: #e9eef8;
-  color: var(--primary-dark);
+  background: var(--secondary);
+  color: var(--secondary-ink);
 }
 
 button:hover {
@@ -226,6 +230,37 @@ a:focus-visible {
 
 .hidden {
   display: none !important;
+}
+
+body[data-theme="dark"] {
+  --page: #111827;
+  --panel: #1f2937;
+  --ink: #e5e7eb;
+  --muted: #b5c0d0;
+  --line: #3b4758;
+  --field: #182232;
+  --secondary: #334155;
+  --secondary-ink: #dbe7ff;
+  --link: #9ab8ff;
+  --ok: #5bd49a;
+  --bad: #ff8c82;
+  color-scheme: dark;
+}
+
+.theme-toggle {
+  min-height: 36px;
+  margin-left: auto;
+  padding: 7px 12px;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.theme-toggle:hover {
+  background: rgb(255 255 255 / 18%);
 }
 
 @media (max-width: 680px) {

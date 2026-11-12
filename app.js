@@ -3,9 +3,17 @@ import { tierCatalog, generateQuestionSet, markAnswers } from './logic.js';
 const tierSelect = document.querySelector('#tierSelect');
 const quantityInput = document.querySelector('#questionCount');
 const refreshButton = document.querySelector('#refreshQuestions');
+const themeToggle = document.querySelector('#themeToggle');
 const questionList = document.querySelector('#questionList');
 const scorePanel = document.querySelector('#scorePanel');
 let currentQuestions = [];
+
+function toggleTheme() {
+  const isDark = document.body.dataset.theme !== 'dark';
+  document.body.dataset.theme = isDark ? 'dark' : 'light';
+  themeToggle.setAttribute('aria-pressed', String(isDark));
+  themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+}
 
 function populateTierOptions() {
   Object.entries(tierCatalog).forEach(([key, tier]) => {
@@ -89,6 +97,7 @@ function refreshQuestions() {
 }
 
 refreshButton.addEventListener('click', refreshQuestions);
+themeToggle.addEventListener('click', toggleTheme);
 document.querySelector('#checkAnswers').addEventListener('click', checkAnswers);
 questionList.addEventListener('input', clearFeedback);
 
