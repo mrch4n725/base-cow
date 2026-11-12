@@ -69,8 +69,6 @@ h1 {
 }
 
 .tagline {
-  display: flex;
-  flex-wrap: wrap;
   margin: 0 0 0 98px;
   color: #b8d4ff;
   font-size: 0.875rem;

@@ -10,7 +10,7 @@ const themeToggle = document.querySelector('#themeToggle');
 const questionList = document.querySelector('#questionList');
 const scorePanel = document.querySelector('#scorePanel');
 const tierTagline = document.querySelector('#tierTagline');
-const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+const systemTheme = window.matchMedia?.('(prefers-color-scheme: dark)') ?? null;
 let currentQuestions = [];
 let userChoseTheme = false;
 
@@ -223,7 +223,11 @@ themeToggle.addEventListener('click', () => {
   userChoseTheme = true;
   setTheme(document.body.dataset.theme !== 'dark');
 });
-systemTheme.addEventListener('change', updateSystemTheme);
+if (systemTheme?.addEventListener) {
+  systemTheme.addEventListener('change', updateSystemTheme);
+} else if (systemTheme?.addListener) {
+  systemTheme.addListener(updateSystemTheme);
+}
 document.querySelector('#checkAnswers').addEventListener('click', checkAnswers);
 questionList.addEventListener('input', clearFeedback);
 questionList.addEventListener('keydown', (event) => {
@@ -241,5 +245,5 @@ populateTierOptions();
 renderTierTagline();
 populateTopicOptions();
 updateTierSelection();
-setTheme(systemTheme.matches);
+setTheme(systemTheme?.matches ?? false);
 refreshQuestions();
